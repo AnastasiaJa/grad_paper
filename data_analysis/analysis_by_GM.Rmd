@@ -363,11 +363,16 @@ sk_MCA %>%
 
 rbind(pl_overall, sk_overall, ru_overall, cs_overall, by_overall, ua_overall) %>%
   ggplot(aes(ending, n, fill = ending))+
-  geom_bar(stat = "identity")+
+  geom_bar(stat = "identity", show.legend = F)+
   facet_wrap(~lng)+
   labs(title = "Процентная доля слов с окончниями -a/-u",
-       subtitle = "посчитано на основе каждого языка")+
-  theme_bw()
+       subtitle = "посчитано на основе каждого языка", 
+       y = "доля",
+       x = "окончания")+
+  theme_bw()+
+  scale_x_discrete(labels=c("a" = "-a", "both" = "оба",
+                            "u" = "-u"))
+
 
 ```
 
