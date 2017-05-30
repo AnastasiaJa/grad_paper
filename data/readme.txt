@@ -1,0 +1,17 @@
+ru:
+http://opencorpora.org/dict.php
+http://www.speakrus.ru/dict/
+by:
+http://bnkorpus.info/download.html
+http://www.skarnik.by/
+pl:
+http://zil.ipipan.waw.pl/PoliMorf
+http://sjp.pwn.pl/
+sk:
+http://slovnik.azet.sk/pravopis/
+cs:
+http://slovnik-cizich-slov.abz.cz/
+https://nlp.fi.muni.cz/czech-morphology-analyser/
+ua:
+http://sum.in.ua/
+https://github.com/kmike/pymorphy2

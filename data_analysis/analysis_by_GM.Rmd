@@ -1,0 +1,371 @@
+---
+title: "Анализ данных"
+author: "George Moroz"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: lumen
+    highlight: tango
+    toc: yes
+    toc_position: right
+    toc_float: yes
+    smooth_scroll: false
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+## 1. Белорусский
+### 1.1 Подготовка
+Ставим пакет:
+```{r}
+library(tidyverse); library(MASS)
+```
+Загружаем данные, переименовываем переменные, убираем NA, там где они на самом деле не NA, создаем новую переменную `endings`, принимающей значение "a", "u" или "both":
+```{r, eval = FALSE}
+by <- read_tsv("../data/final_by.csv")
+by %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) -> 
+  by
+by <- by[, -c(2, 3, 5:7)]
+str(by)
+```
+
+### 1.2 Визуализация
+Параметров много. Чтобы не смотреть на все сразу можно попробовать сделать MCA.
+```{r, eval=FALSE}
+by[] <- lapply(by, factor) # convert all variables to factor
+MCA <- mca(by[, -c(1, 4, 6)])
+by_MCA <- cbind(by, MCA$rs)
+write_tsv(by_MCA, "../data/by_MCA.tsv")
+```
+```{r, echo=FALSE}
+by_MCA <- read_delim("../data/by_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+```{r}
+by_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = by_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для белорусского языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+Данный график представляет собой MCA, произведенный на основе всех параметров в белорусских данных. Данные разделены на три группы по типу окончанию. Серым фоном обозначены все данные вместе. Как видно, данные не делятся на кластеры, а скорее делятся на похожие группы, с одинаковым центром и немножко разными перифериями. Приэтом разброс точек относительно центра несколько отличается в группе, члены которой принимают оба типа окончания. На основании данной визуализации мы можем сделать вывод, о том, что выбранные параметры не очень-то и различают группы слов, принимающие разные окончания. Все что остается анализировать --- отдельные тренды внутри каждого из параметров.
+
+Перебрав разные модели, мы обнаружили, что основным параметром, отвечающим за расположение в новых осях является последний гласный:
+```{r}
+by_MCA %>% 
+    ggplot(aes(`1`, `2`, color = ending, label = last_vowel))+
+  geom_text(data = by_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_text(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_grid(~ending)+
+  theme_bw()+
+  labs(title = "MCA для белорусского языка",
+       subtitle = "построено на основе всех параметров, буква обозначает коненый гласный")
+```
+
+Таким образом мы обнаруживаем некоторые тренды:
+
+```{r}
+by_MCA %>%
+  count(last_vowel, ending) %>% 
+  ggplot(aes(ending, last_vowel, size = 2*n))+
+  geom_point(aes(size = n), alpha=0.8, color="darkblue", show.legend =FALSE) +
+  geom_text(aes(label = n), color="white", size = 4) +
+  scale_size(range = c(4,16)) +
+  theme_bw()
+  labs(x = "аудио стимулы",
+       y = "видео стимулы",
+       title = "Результаты сгрупированные по ответу и полу")
+
+```
+
+## 2. Чешский
+
+```{r, eval = FALSE}
+cs <- read_delim("../data/final_cs.csv", "\t", escape_double = FALSE, trim_ws = TRUE)
+cs %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) ->
+  cs
+cs <- cs[, -c(2, 3, 5:7)]
+cs[] <- lapply(cs, factor) # convert all variables to factor
+MCA <- mca(cs[, -c(1, 4, 6)])
+cs_MCA <- cbind(cs, MCA$rs)
+write_tsv(cs_MCA, "../data/cs_MCA.tsv")
+```
+```{r, echo=FALSE}
+cs_MCA <- read_delim("../data/cs_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+```{r}
+cs_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = cs_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для чешского языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+Здесь видно, что и слов с окончанием -a и слов, допускающих оба окончания, достаточно мало и все они в центре. Так что какие-то тренды здесь выбранные параметры не выделяют.
+
+## 3. Словацкий
+
+```{r, eval = FALSE}
+sk <- read_delim("../data/final_sk.csv", "\t", escape_double = FALSE, trim_ws = TRUE)
+sk %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) ->
+  sk
+sk <- sk[, -c(2, 3, 5:7)]
+sk[] <- lapply(sk, factor) # convert all variables to factor
+MCA <- mca(sk[, -c(1, 4, 6)])
+sk_MCA <- cbind(sk, MCA$rs)
+write_tsv(sk_MCA, "../data/sk_MCA.tsv")
+```
+```{r, echo=FALSE}
+sk_MCA <- read_delim("../data/sk_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+```{r}
+sk_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = sk_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для славацкого языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+Видно, что есть некоторые кластеры, в которых встречаются лишь слова с окончанием -a. Например, кластер, находящийся выше горизонтали 0.005 или на вертикали -0.005. Перебрав разные модели, мы обнаружили, что основным параметром, отвечающим за расположение в новых осях является тип суффикса (и связанный с ним тип конечный согласного):
+
+```{r}
+sk_MCA %>% 
+  filter(grepl("ec", suffix) |
+           grepl("ík", suffix) | 
+           grepl("ček", suffix) ) %>% 
+  ggplot(aes(`1`, `2`, color = suffix))+
+  geom_point(data = sk_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse()+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для славацкого языка",
+       subtitle = "построено на основе всех параметров")
+```
+На данном графике показаны суффиксы, которые встречаются только с окончанием -a. 
+
+## 4. Русский
+
+```{r, eval=FALSE}
+ru <- read_delim("../data/final_ru.csv", "\t", escape_double = FALSE, trim_ws = TRUE)
+ru %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) ->
+  ru
+ru <- ru[, -c(2, 3, 5:7)]
+ru[] <- lapply(ru, factor) # convert all variables to factor
+MCA <- mca(ru[, -c(1, 4, 6)])
+ru_MCA <- cbind(ru, MCA$rs)
+write_tsv(ru_MCA, "../data/ru_MCA.tsv")
+```
+```{r, echo=FALSE}
+ru_MCA <- read_delim("../data/ru_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+```{r}
+ru_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = ru_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для русского языка",
+       subtitle = "построено на основе всех параметров")
+```
+В русском языке рассмтриваемые параметры не кластеризуют данные. Все слова находятся в одном и том же ядре и отличаются лишь количеством.
+
+## 5. Украинский
+
+```{r, eval=FALSE}
+ua <- read_delim("../data/final_ua.csv", "\t", escape_double = FALSE, trim_ws = TRUE)
+ua %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) ->
+  ua
+ua <- ua[, -c(2, 3, 5:7)]
+ua[] <- lapply(ua, factor) # convert all variables to factor
+MCA <- mca(ua[, -c(1, 4, 6)])
+ua_MCA <- cbind(ua, MCA$rs)
+write_tsv(ua_MCA, "../data/ua_MCA.tsv")
+```
+```{r, echo=FALSE}
+ua_MCA <- read_delim("../data/ua_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+```{r}
+ua_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = ua_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для украинского языка",
+       subtitle = "построено на основе всех параметров")
+```
+В целом украинские данные выглядят достаточно монолитно. Отличие видно лишь в кластере, который находиться правее вертикали 0.005. Перебрав разные модели, мы обнаружили, что основным параметром, отвечающим за это отделение является тип суффикса (и свазанный с ним параметр конечного кластера согласного). Если быть точнее, то все суффиксы заканчивающиеся на  iзм/изм и т. п.
+
+```{r}
+ua_MCA %>% 
+  filter(grepl("зм", suffix)) %>% 
+  ggplot(aes(`1`, `2`, color = suffix))+
+  geom_point(data = ua_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse()+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для украинского языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+
+## 6. Польский
+
+```{r, eval=FALSE}
+pl <- read_delim("../data/final_pl.csv", "\t", escape_double = FALSE, trim_ws = TRUE)
+pl %>% 
+  mutate(ending = ifelse(`-a` == "+" & `-u` == "+", "both", `-a`),
+         ending = ifelse(ending == "+", "a", ending),
+         ending = ifelse(ending == "-", "u", ending)) %>% 
+  mutate(cons.cluster = ifelse(is.na(`last cons. cluster`), "V", `last cons. cluster`)) %>% 
+  mutate(suffix = ifelse(is.na(suffix), "-", suffix)) %>% 
+  mutate(all_vowels = `all vowels`) %>% 
+  mutate(last_vowel = `last vowel`) ->
+  pl
+pl <- pl[, -c(2, 3, 5:7)]
+pl[] <- lapply(pl, factor) # convert all variables to factor
+MCA <- mca(pl[, -c(1, 4, 6)])
+pl_MCA <- cbind(pl, MCA$rs)
+write_tsv(pl_MCA, "../data/pl_MCA.tsv")
+```
+
+```{r, echo=FALSE}
+pl_MCA <- read_delim("../data/pl_MCA.tsv", "\t", escape_double = FALSE, trim_ws = TRUE)
+```
+
+```{r}
+pl_MCA %>% 
+  ggplot(aes(`1`, `2`, color = ending))+
+  geom_point(data = pl_MCA[,-6], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25, show.legend = F)+
+  stat_ellipse(show.legend = F)+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для польского языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+Польский материал показывает, что есть общий центральный кластер, а также есть кластеры, которые хорошо отличаются по окончанию: кластер -a выше горизонтали 0.002 и кластер -u левее вертикали -0.001. Перебрав разные модели, мы обнаружили, что основным параметром, отвечающим за это отделение является тип суффикса (и свазанный с ним параметр конечного кластера согласного). Однако наша классификация суффиксав была достаточно дробная. Если объединить (я это делал руками, Настя) все суффиксы в кластеры, то легко показать, что пространство польских слов делиться на центр, который не кластеризуется при помощи наших параметров, и переферию: в одном суффиксы типа i/yzm, которые требуют оконачания -u, в другом суффиксы типа -ec, которые требуют -a.
+
+```{r}
+pl_MCA %>% 
+  filter(hiper_suf == "i/yzm" |
+           hiper_suf == "ec") %>% 
+  ggplot(aes(`1`, `2`, color = hiper_suf))+
+  geom_point(data = pl_MCA[,-7], color = "grey", alpha = 0.2)+
+  geom_point(alpha = 0.25)+
+#  stat_ellipse()+
+  facet_wrap(~ending)+
+  theme_bw()+
+  labs(title = "MCA для славацкого языка",
+       subtitle = "построено на основе всех параметров")
+```
+
+## 7. Заключение
+Итого, наше исследование, показало:
+
+* что формы родительного падежа в разных славянских языках ведут себя по-разному. В одних языках (чешском, русском) есть тенденция к унификации, в других языках одни слова тяготеют к одному окончанию -а, а другие к окончанию -u.
+
+```{r}
+by_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(by_MCA),
+            lng = "белорусский") ->
+  by_overall
+
+pl_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(pl_MCA),
+            lng = "польский") ->
+  pl_overall
+
+ru_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(ru_MCA),
+            lng = "русский") ->
+  ru_overall
+
+ua_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(ua_MCA),
+            lng = "украинский") ->
+  ua_overall
+
+cs_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(cs_MCA),
+            lng = "чешский") ->
+  cs_overall
+
+sk_MCA %>% 
+  group_by(ending) %>% 
+  summarise(n = n()/nrow(sk_MCA),
+            lng = "словацкий") ->
+  sk_overall
+
+rbind(pl_overall, sk_overall, ru_overall, cs_overall, by_overall, ua_overall) %>%
+  ggplot(aes(ending, n, fill = ending))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~lng)+
+  labs(title = "Процентная доля слов с окончниями -a/-u",
+       subtitle = "посчитано на основе каждого языка")+
+  theme_bw()
+
+```
+
+* Как показало исследование MCA, выбранные нами параметры, не очень сильно позволяют дифференцировать слова с разными окончаниями. Однако в некоторых случаях некоторые суффиксы (и в случае белорусского --- конечный глассный) позволяют выделить классы существительных, которые тяготеют к тому или иному окончанию. Морфологические параметры связаны и с другими параметрами: так, один из таких суффиксов -izm/-изм... привлекает за собой и параметр, отвечающий за конечный согласный и гласный, и семантический параметр, отвечающий за абстрактные существительные, так как именно такую семантику данный суффикс и имеет.
+* Наше исследование позволило выделить некоторые значимые параметры, однако, возможно, найдется какой-то другой набор параметров, который будет лучше описывать служившееся в славянских языках.
